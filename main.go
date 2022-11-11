@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	sendinblue "github.com/sendinblue/APIv3-go-library/v2/lib"
 	"log"
 	"sync"
 	"time"
+
+	sendinblue "github.com/sendinblue/APIv3-go-library/v2/lib"
 )
 
 type resultError struct {
