@@ -23,11 +23,11 @@ func main() {
 	cfg := sendinblue.NewConfiguration()
 	apiKye := make([]string, 0)
 	// apikey will be around 100 (100 clients)
-	apiKye = append(apiKye, "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")
+	apiKye = append(apiKye, "")
 	filesURl := make([]string, 0)
 	// files can be of size 6k to 2M
 	filesURl = append(filesURl, "https://raw.githubusercontent.com/amit0592/testFiles/main/1-1lakh.csv", "https://raw.githubusercontent.com/amit0592/testFiles/main/test3.csv", "https://raw.githubusercontent.com/amit0592/testFiles/main/test2.csv")
-	maxImportLimit := 246
+	maxImportLimit := 250
 	startTime := time.Now()
 	result := make(chan resultError, maxImportLimit)
 	for j := 0; j < maxImportLimit/(len(apiKye)*len(filesURl)); j++ {
@@ -39,7 +39,7 @@ func main() {
 	}
 	for i := 0; i < maxImportLimit; i++ {
 		r := <-result
-		fmt.Println(r)
+		log.Println(r)
 	}
 	endTime := time.Now()
 	log.Println(int64(endTime.Sub(startTime) / time.Second))
