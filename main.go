@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 
@@ -11,6 +11,7 @@ import (
 )
 
 type resultError struct {
+	api        string
 	pID        int64
 	statusCode int
 	err        error
@@ -20,21 +21,21 @@ var count int64
 
 func main() {
 	ctx := context.Background()
-	cfg := sendinblue.NewConfiguration()
 	apiKye := make([]string, 0)
 	// apikey will be around 100 (100 clients)
 	apiKye = append(apiKye, "")
 	filesURl := make([]string, 0)
 	// files can be of size 6k to 2M
-	filesURl = append(filesURl, "https://raw.githubusercontent.com/amit0592/testFiles/main/1-1lakh.csv", "https://raw.githubusercontent.com/amit0592/testFiles/main/test3.csv", "https://raw.githubusercontent.com/amit0592/testFiles/main/test2.csv")
-	maxImportLimit := 250
+	filesURl = append(filesURl, "https://raw.githubusercontent.com/amitsendinblue/Hello/master/ImportLoadTestFiles/20Lakh.csv", "https://raw.githubusercontent.com/amitsendinblue/Hello/master/ImportLoadTestFiles/10Lakh.csv", "https://raw.githubusercontent.com/amitsendinblue/Hello/master/ImportLoadTestFiles/5Lakh.csv", "https://raw.githubusercontent.com/amitsendinblue/Hello/master/ImportLoadTestFiles/1Lakh.csv", "https://raw.githubusercontent.com/amitsendinblue/Hello/master/ImportLoadTestFiles/50000.csv")
+	maxImportLimit := 15000
 	startTime := time.Now()
 	result := make(chan resultError, maxImportLimit)
+	max := runtime.GOMAXPROCS(0)
+	g := make(chan bool, max)
+	log.Println(len(apiKye), len(filesURl), maxImportLimit/(len(apiKye)*len(filesURl)))
 	for j := 0; j < maxImportLimit/(len(apiKye)*len(filesURl)); j++ {
 		for i, api := range apiKye {
-			cfg.AddDefaultHeader("api-key", api)
-			sib := sendinblue.NewAPIClient(cfg)
-			go makeHTTPRequest(ctx, sib, filesURl, result, i)
+			go makeHTTPRequest(ctx, filesURl, result, i, api, g)
 		}
 	}
 	for i := 0; i < maxImportLimit; i++ {
@@ -47,10 +48,13 @@ func main() {
 	log.Println(count)
 }
 
-func makeHTTPRequest(ctx context.Context, sib *sendinblue.APIClient, filesURL []string, result chan<- resultError, w int) {
+func makeHTTPRequest(ctx context.Context, filesURL []string, result chan<- resultError, w int, api string, l chan bool) {
 	var m sync.Mutex
+	cfg := sendinblue.NewConfiguration()
+	cfg.AddDefaultHeader("api-key", api)
+	sib := sendinblue.NewAPIClient(cfg)
+	l <- true
 	for _, url := range filesURL {
-		fmt.Println(w)
 		data := sendinblue.RequestContactImport{
 			FileUrl:                 url,
 			ListIds:                 []int64{2},
@@ -65,6 +69,7 @@ func makeHTTPRequest(ctx context.Context, sib *sendinblue.APIClient, filesURL []
 		}
 		contacts, h, err := sib.ContactsApi.ImportContacts(ctx, data)
 		r := resultError{
+			api:        api,
 			pID:        contacts.ProcessId,
 			statusCode: h.StatusCode,
 			err:        err,
@@ -76,5 +81,5 @@ func makeHTTPRequest(ctx context.Context, sib *sendinblue.APIClient, filesURL []
 		}
 		m.Unlock()
 	}
-	log.Println("done---------")
+	<-l
 }
